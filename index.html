@@ -1,0 +1,2395 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบฐานข้อมูลอุปกรณ์ WiFi</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .sync-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .sync-indicator.connected {
+            background: #00ff00;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .config-section {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .config-section input {
+            width: 60%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            padding: 0 30px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .nav-tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #6c757d;
+            position: relative;
+        }
+
+        .nav-tab.active {
+            color: #667eea;
+        }
+
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .card h3 {
+            font-size: 16px;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: #667eea;
+            color: white;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            border: none;
+            background: none;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-box {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            width: 300px;
+            margin-bottom: 20px;
+        }
+
+        .category-detail-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+        }
+
+        .category-detail-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-item .label {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+
+        .stat-item .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-item.available .number {
+            color: #28a745;
+        }
+
+        .stat-item.borrowed .number {
+            color: #ffc107;
+        }
+
+        .stat-item.transferred .number {
+            color: #17a2b8;
+        }
+
+        .stat-item.claimed .number {
+            color: #dc3545;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-available {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-borrowed {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-transferred {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-claimed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📡 ระบบฐานข้อมูลอุปกรณ์ WiFi</h1>
+            <div class="sync-status">
+                <div class="sync-indicator" id="syncIndicator"></div>
+                <span id="syncStatus">ไม่ได้เชื่อมต่อ</span>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <strong>Google Sheets Configuration:</strong>
+            <input type="text" id="clientId" placeholder="ใส่ OAuth 2.0 Client ID" style="width: 400px;" />
+            <input type="text" id="sheetId" placeholder="ใส่ Spreadsheet ID" />
+            <button class="btn btn-primary" id="authorizeButton" onclick="handleAuthClick()">🔐 Login with Google</button>
+            <button class="btn btn-danger" id="signoutButton" onclick="handleSignoutClick()" style="display:none;">🚪 Logout</button>
+            <button class="btn btn-success" onclick="syncNow()">Sync เดี๋ยวนี้</button>
+            <button class="btn btn-danger" onclick="clearLocalStorage()" style="margin-left: 10px;">🗑️ Clear Local Data</button>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="nav-tab" onclick="switchTab('equipment')">อุปกรณ์ทั้งหมด</button>
+            <button class="nav-tab" onclick="switchTab('transactions')">ประวัติการทำรายการ</button>
+        </div>
+
+        <div id="dashboardTab" class="tab-content active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #333;">📊 สรุปภาพรวม</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn btn-info" onclick="exportDashboardToCSV()">📥 Export CSV</button>
+                    <input type="text" class="search-box" id="dashboardSearch" placeholder="🔍 ค้นหาประเภท (ใช้ , คั่น)..." onkeyup="filterDashboard()">
+                    <span id="dashboardResult" style="font-weight: 600; color: #667eea;"></span>
+                </div>
+            </div>
+            
+            <div class="dashboard">
+                <div class="card" style="border-left-color: #667eea;">
+                    <h3>📦 อุปกรณ์ทั้งหมด</h3>
+                    <div class="value" id="totalEquipment">0</div>
+                </div>
+                <div class="card" style="border-left-color: #28a745;">
+                    <h3>✅ พร้อมใช้งาน</h3>
+                    <div class="value" id="availableEquipment">0</div>
+                </div>
+                <div class="card" style="border-left-color: #ffc107;">
+                    <h3>📤 ถูกยืม</h3>
+                    <div class="value" id="borrowedEquipment">0</div>
+                </div>
+                <div class="card" style="border-left-color: #17a2b8;">
+                    <h3>🔄 โอนแล้ว</h3>
+                    <div class="value" id="transferredEquipment">0</div>
+                </div>
+                <div class="card" style="border-left-color: #dc3545;">
+                    <h3>⚠️ ส่งเคลม</h3>
+                    <div class="value" id="claimedEquipment">0</div>
+                </div>
+            </div>
+
+            <h2 style="margin: 30px 0 20px 0; color: #333;">📋 รายละเอียดแต่ละประเภท</h2>
+            <div id="categoryDetails"></div>
+        </div>
+
+        <div id="equipmentTab" class="tab-content">
+            <div class="actions">
+                <button class="btn btn-success" onclick="openAddModal()">+ เพิ่มอุปกรณ์</button>
+                <button class="btn btn-primary" onclick="loadDataFromSheets()">🔄 โหลดข้อมูลจาก Sheet</button>
+                <button class="btn btn-warning" onclick="forceCreate8ColumnSheet()">⚡ สร้าง Sheet 8 คอลัมน์ใหม่</button>
+                <button class="btn btn-info" onclick="exportEquipmentToCSV()">📥 Export CSV</button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" class="search-box" id="searchBox" placeholder="🔍 ค้นหา (ใช้ , คั่นหลายคำ)..." onkeyup="filterTable()">
+                    <span id="searchResult" style="font-weight: 600; color: #667eea; white-space: nowrap;"></span>
+                </div>
+            </div>
+            <table id="equipmentTable">
+                <thead>
+                    <tr>
+                        <th>ประเภท</th>
+                        <th>โครงการ</th>
+                        <th>Serial No.</th>
+                        <th>Mac Address</th>
+                        <th>รหัสสินทรัพย์</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="equipmentBody"></tbody>
+            </table>
+        </div>
+
+        <div id="transactionsTab" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">ประวัติการทำรายการ</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn btn-info" onclick="exportTransactionsToCSV()">📥 Export CSV</button>
+                    <input type="text" class="search-box" id="transactionSearch" placeholder="🔍 ค้นหา (ใช้ , คั่นหลายคำ)..." onkeyup="filterTransactions()">
+                    <span id="transactionResult" style="font-weight: 600; color: #667eea;"></span>
+                </div>
+            </div>
+            <table id="transactionsTable">
+                <thead>
+                    <tr>
+                        <th>วันที่</th>
+                        <th>ประเภท</th>
+                        <th>อุปกรณ์</th>
+                        <th>Serial No.</th>
+                        <th>Mac Address</th>
+                        <th>รายละเอียด</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionsBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add/Edit Equipment Modal -->
+    <div id="equipmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">เพิ่มอุปกรณ์</h2>
+                <button class="close-btn" onclick="closeModal('equipmentModal')">&times;</button>
+            </div>
+            <form onsubmit="saveEquipment(event)">
+                <div class="form-group">
+                    <label>ประเภท *</label>
+                    <select id="eqType" required onchange="handleTypeChange(this)">
+                        <option value="">เลือกประเภท</option>
+                        <option value="AP">AP</option>
+                        <option value="Switch">Switch</option>
+                        <option value="PoE Injector">PoE Injector</option>
+                        <option value="Rack">Rack</option>
+                        <option value="ขาตั้ง">ขาตั้ง</option>
+                        <option value="Router">Router</option>
+                        <option value="Firewall">Firewall</option>
+                        <option value="Cable">Cable</option>
+                        <option value="Adapter">Adapter</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                        <option value="__add_new__" style="background: #e3f2fd; font-weight: bold;">+ เพิ่มประเภทใหม่...</option>
+                    </select>
+                    <input type="text" id="eqTypeCustom" placeholder="พิมพ์ประเภทใหม่" style="display:none; margin-top:10px;">
+                </div>
+                <div class="form-group">
+                    <label>ชื่อ *</label>
+                    <input type="text" id="eqName" required>
+                </div>
+                <div class="form-group">
+                    <label>Serial No.</label>
+                    <input type="text" id="eqSerial">
+                </div>
+                <div class="form-group">
+                    <label>Mac Address</label>
+                    <input type="text" id="eqMac">
+                </div>
+                <div class="form-group">
+                    <label>รหัสสินทรัพย์</label>
+                    <input type="text" id="eqAssetCode">
+                </div>
+                <div class="form-group">
+                    <label>จนท.ดำเนินการ</label>
+                    <input type="text" id="eqOfficer">
+                </div>
+                <div class="form-group">
+                    <label>โครงการ</label>
+                    <input type="text" id="eqProject">
+                </div>
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea id="eqNote"></textarea>
+                </div>
+                <input type="hidden" id="eqId">
+                <button type="submit" class="btn btn-success">บันทึก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('equipmentModal')">ยกเลิก</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Borrow Modal -->
+    <div id="borrowModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>ยืมอุปกรณ์</h2>
+                <button class="close-btn" onclick="closeModal('borrowModal')">&times;</button>
+            </div>
+            <form onsubmit="saveBorrow(event)">
+                <div class="form-group">
+                    <label>ผู้ยืม *</label>
+                    <input type="text" id="borrower" required>
+                </div>
+                <div class="form-group">
+                    <label>ผู้ให้ยืม *</label>
+                    <input type="text" id="lender" required>
+                </div>
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea id="borrowNote"></textarea>
+                </div>
+                <input type="hidden" id="borrowEqId">
+                <button type="submit" class="btn btn-success">บันทึก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('borrowModal')">ยกเลิก</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Return Modal -->
+    <div id="returnModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>คืนอุปกรณ์</h2>
+                <button class="close-btn" onclick="closeModal('returnModal')">&times;</button>
+            </div>
+            <form onsubmit="saveReturn(event)">
+                <div class="form-group">
+                    <label>สถานะอุปกรณ์ *</label>
+                    <select id="returnStatus" required>
+                        <option value="ปกติ">ปกติ</option>
+                        <option value="ชำรุด">ชำรุด</option>
+                        <option value="สูญหาย">สูญหาย</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea id="returnNote"></textarea>
+                </div>
+                <input type="hidden" id="returnEqId">
+                <button type="submit" class="btn btn-success">บันทึก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('returnModal')">ยกเลิก</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transfer Modal -->
+    <div id="transferModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>โอนอุปกรณ์</h2>
+                <button class="close-btn" onclick="closeModal('transferModal')">&times;</button>
+            </div>
+            <form onsubmit="saveTransfer(event)">
+                <div class="form-group">
+                    <label>สถานที่โอนไป *</label>
+                    <input type="text" id="transferLocation" required>
+                </div>
+                <div class="form-group">
+                    <label>จนท.ผู้รับมอบ *</label>
+                    <input type="text" id="transferOfficer" required>
+                </div>
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea id="transferNote"></textarea>
+                </div>
+                <input type="hidden" id="transferEqId">
+                <button type="submit" class="btn btn-success">บันทึก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('transferModal')">ยกเลิก</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Claim Modal -->
+    <div id="claimModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>ส่งเคลมอุปกรณ์</h2>
+                <button class="close-btn" onclick="closeModal('claimModal')">&times;</button>
+            </div>
+            <form onsubmit="saveClaim(event)">
+                <div class="form-group">
+                    <label>ส่งเคลมกับ *</label>
+                    <input type="text" id="claimTo" required>
+                </div>
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea id="claimNote"></textarea>
+                </div>
+                <input type="hidden" id="claimEqId">
+                <button type="submit" class="btn btn-success">บันทึก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('claimModal')">ยกเลิก</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Claim Return Modal -->
+    <div id="claimReturnModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>รับคืนอุปกรณ์จากเคลม</h2>
+                <button class="close-btn" onclick="closeModal('claimReturnModal')">&times;</button>
+            </div>
+            <form onsubmit="saveClaimReturn(event)">
+                <div class="form-group">
+                    <label>สถานะอุปกรณ์ที่ได้รับคืน *</label>
+                    <select id="claimReturnStatus" required>
+                        <option value="ปกติ">ปกติ - พร้อมใช้งาน</option>
+                        <option value="ซ่อมแล้ว">ซ่อมแล้ว - พร้อมใช้งาน</option>
+                        <option value="เปลี่ยนใหม่">เปลี่ยนอุปกรณ์ใหม่</option>
+                        <option value="ไม่สามารถซ่อมได้">ไม่สามารถซ่อมได้</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea id="claimReturnNote" placeholder="ระบุรายละเอียดการรับคืน เช่น เลขที่ใบรับคืน, สภาพของอุปกรณ์"></textarea>
+                </div>
+                <input type="hidden" id="claimReturnEqId">
+                <button type="submit" class="btn btn-success">บันทึก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('claimReturnModal')">ยกเลิก</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let equipment = [];
+        let transactions = [];
+        let syncInterval = null;
+        let isConnected = false;
+        let customTypes = []; // Store custom equipment types
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            loadCustomTypes();
+            updateDashboard();
+            renderEquipmentTable();
+            renderTransactions();
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'เพิ่มอุปกรณ์';
+            document.getElementById('eqId').value = '';
+            document.querySelector('#equipmentModal form').reset();
+            document.getElementById('eqTypeCustom').style.display = 'none';
+            updateTypeDropdown();
+            document.getElementById('equipmentModal').classList.add('active');
+        }
+
+        function openEditModal(id) {
+            const eq = equipment.find(e => e.id === id);
+            if (!eq) return;
+
+            document.getElementById('modalTitle').textContent = 'แก้ไขอุปกรณ์';
+            document.getElementById('eqId').value = eq.id;
+            updateTypeDropdown();
+            document.getElementById('eqType').value = eq.type;
+            document.getElementById('eqName').value = eq.name;
+            document.getElementById('eqSerial').value = eq.serial || '';
+            document.getElementById('eqMac').value = eq.mac || '';
+            document.getElementById('eqAssetCode').value = eq.assetCode || '';
+            document.getElementById('eqOfficer').value = eq.officer || '';
+            document.getElementById('eqProject').value = eq.project || '';
+            document.getElementById('eqNote').value = eq.note || '';
+            document.getElementById('eqTypeCustom').style.display = 'none';
+            document.getElementById('equipmentModal').classList.add('active');
+        }
+
+        function handleTypeChange(select) {
+            const customInput = document.getElementById('eqTypeCustom');
+            if (select.value === '__add_new__') {
+                customInput.style.display = 'block';
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
+
+        function updateTypeDropdown() {
+            const typeSelect = document.getElementById('eqType');
+            const currentValue = typeSelect.value;
+            
+            // Get all existing types from equipment
+            const existingTypes = [...new Set(equipment.map(eq => eq.type))];
+            
+            // Combine with custom types
+            const allCustomTypes = [...new Set([...customTypes, ...existingTypes])];
+            
+            // Default types
+            const defaultTypes = ['AP', 'Switch', 'PoE Injector', 'Rack', 'ขาตั้ง', 'Router', 'Firewall', 'Cable', 'Adapter', 'อื่นๆ'];
+            
+            // Rebuild options
+            typeSelect.innerHTML = '<option value="">เลือกประเภท</option>';
+            
+            // Add default types
+            defaultTypes.forEach(type => {
+                typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
+            });
+            
+            // Add custom types (not in default list)
+            allCustomTypes.forEach(type => {
+                if (!defaultTypes.includes(type)) {
+                    typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
+                }
+            });
+            
+            // Add "add new" option
+            typeSelect.innerHTML += '<option value="__add_new__" style="background: #e3f2fd; font-weight: bold;">+ เพิ่มประเภทใหม่...</option>';
+            
+            // Restore previous value if exists
+            if (currentValue && currentValue !== '__add_new__') {
+                typeSelect.value = currentValue;
+            }
+        }
+
+        function loadCustomTypes() {
+            const saved = localStorage.getItem('customTypes');
+            if (saved) {
+                customTypes = JSON.parse(saved);
+            }
+        }
+
+        function saveCustomTypes() {
+            localStorage.setItem('customTypes', JSON.stringify(customTypes));
+        }
+
+        function saveEquipment(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('eqId').value || Date.now().toString();
+            const existingEquipment = equipment.find(e => e.id === id);
+            
+            // Get type value
+            let typeValue = document.getElementById('eqType').value;
+            if (typeValue === '__add_new__') {
+                const customType = document.getElementById('eqTypeCustom').value.trim();
+                if (!customType) {
+                    alert('กรุณาระบุประเภทอุปกรณ์');
+                    return;
+                }
+                typeValue = customType;
+                
+                // Add to custom types
+                if (!customTypes.includes(customType)) {
+                    customTypes.push(customType);
+                    saveCustomTypes();
+                }
+            }
+            
+            const equipmentData = {
+                id: id,
+                type: typeValue,
+                name: document.getElementById('eqName').value,
+                serial: document.getElementById('eqSerial').value,
+                mac: document.getElementById('eqMac').value,
+                assetCode: document.getElementById('eqAssetCode').value,
+                officer: document.getElementById('eqOfficer').value,
+                project: document.getElementById('eqProject').value,
+                note: document.getElementById('eqNote').value,
+                status: existingEquipment ? existingEquipment.status : 'available',
+                createdDate: existingEquipment ? existingEquipment.createdDate : new Date().toISOString()
+            };
+
+            const index = equipment.findIndex(e => e.id === id);
+            if (index > -1) {
+                equipment[index] = equipmentData;
+            } else {
+                equipment.push(equipmentData);
+            }
+
+            saveToLocalStorage();
+            renderEquipmentTable();
+            updateDashboard();
+            closeModal('equipmentModal');
+            
+            // Sync to Google Sheets immediately
+            if (isConnected && accessToken) {
+                syncNow(true).then(() => { // Skip loading data, just write to sheets
+                    alert('บันทึกข้อมูลเรียบร้อยและ Sync แล้ว ✅');
+                });
+            } else {
+                alert('บันทึกข้อมูลเรียบร้อย (ยังไม่ได้เชื่อมต่อ Google Sheets)');
+            }
+        }
+
+        function deleteEquipment(id) {
+            if (!confirm('ต้องการลบอุปกรณ์นี้หรือไม่?')) return;
+            
+            equipment = equipment.filter(e => e.id !== id);
+            saveToLocalStorage();
+            renderEquipmentTable();
+            updateDashboard();
+            
+            // Sync to Google Sheets immediately
+            if (isConnected && accessToken) {
+                syncNow(true).then(() => { // Skip loading data, just write to sheets
+                    alert('ลบข้อมูลเรียบร้อยและ Sync แล้ว ✅');
+                });
+            } else {
+                alert('ลบข้อมูลเรียบร้อย (ยังไม่ได้เชื่อมต่อ Google Sheets)');
+            }
+        }
+
+        function openBorrowModal(id) {
+            const eq = equipment.find(e => e.id === id);
+            if (!eq || eq.status !== 'available') {
+                alert('อุปกรณ์นี้ไม่พร้อมใช้งาน');
+                return;
+            }
+            document.getElementById('borrowEqId').value = id;
+            document.querySelector('#borrowModal form').reset();
+            document.getElementById('borrowModal').classList.add('active');
+        }
+
+        async function saveBorrow(e) {
+            e.preventDefault();
+            const id = document.getElementById('borrowEqId').value;
+            const eq = equipment.find(e => e.id === id);
+            
+            if (!eq) {
+                alert('ไม่พบข้อมูลอุปกรณ์');
+                return;
+            }
+            
+            const transaction = {
+                id: Date.now().toString(),
+                equipmentId: id,
+                equipmentName: eq.name,
+                equipmentSerial: eq.serial || '-',
+                equipmentMac: eq.mac || '-',
+                type: 'borrow',
+                borrower: document.getElementById('borrower').value,
+                lender: document.getElementById('lender').value,
+                note: document.getElementById('borrowNote').value,
+                date: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            eq.status = 'borrowed';
+            
+            saveToLocalStorage();
+            renderEquipmentTable();
+            renderTransactions();
+            updateDashboard();
+            closeModal('borrowModal');
+            
+            console.log('💾 Saving transaction with Serial:', transaction.equipmentSerial, 'Mac:', transaction.equipmentMac);
+            
+            // Sync to Google Sheets immediately
+            if (isConnected && accessToken) {
+                await syncNow(true); // Skip loading data, just write to sheets
+                alert('บันทึกการยืมเรียบร้อยและ Sync แล้ว ✅');
+            } else {
+                alert('บันทึกการยืมเรียบร้อย (ยังไม่ได้เชื่อมต่อ Google Sheets)');
+            }
+        }
+
+        function openReturnModal(id) {
+            const eq = equipment.find(e => e.id === id);
+            if (!eq || eq.status !== 'borrowed') {
+                alert('อุปกรณ์นี้ไม่ได้ถูกยืม');
+                return;
+            }
+            document.getElementById('returnEqId').value = id;
+            document.querySelector('#returnModal form').reset();
+            document.getElementById('returnModal').classList.add('active');
+        }
+
+        async function saveReturn(e) {
+            e.preventDefault();
+            const id = document.getElementById('returnEqId').value;
+            const eq = equipment.find(e => e.id === id);
+            
+            if (!eq) {
+                alert('ไม่พบข้อมูลอุปกรณ์');
+                return;
+            }
+            
+            const transaction = {
+                id: Date.now().toString(),
+                equipmentId: id,
+                equipmentName: eq.name,
+                equipmentSerial: eq.serial || '-',
+                equipmentMac: eq.mac || '-',
+                type: 'return',
+                status: document.getElementById('returnStatus').value,
+                note: document.getElementById('returnNote').value,
+                date: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            eq.status = 'available';
+            
+            saveToLocalStorage();
+            renderEquipmentTable();
+            renderTransactions();
+            updateDashboard();
+            closeModal('returnModal');
+            
+            console.log('💾 Saving transaction with Serial:', transaction.equipmentSerial, 'Mac:', transaction.equipmentMac);
+            
+            // Sync to Google Sheets immediately
+            if (isConnected && accessToken) {
+                await syncNow(true); // Skip loading data, just write to sheets
+                alert('บันทึกการคืนเรียบร้อยและ Sync แล้ว ✅');
+            } else {
+                alert('บันทึกการคืนเรียบร้อย (ยังไม่ได้เชื่อมต่อ Google Sheets)');
+            }
+        }
+
+        function openTransferModal(id) {
+            document.getElementById('transferEqId').value = id;
+            document.querySelector('#transferModal form').reset();
+            document.getElementById('transferModal').classList.add('active');
+        }
+
+        async function saveTransfer(e) {
+            e.preventDefault();
+            const id = document.getElementById('transferEqId').value;
+            const eq = equipment.find(e => e.id === id);
+            
+            if (!eq) {
+                alert('ไม่พบข้อมูลอุปกรณ์');
+                return;
+            }
+            
+            const transaction = {
+                id: Date.now().toString(),
+                equipmentId: id,
+                equipmentName: eq.name,
+                equipmentSerial: eq.serial || '-',
+                equipmentMac: eq.mac || '-',
+                type: 'transfer',
+                location: document.getElementById('transferLocation').value,
+                officer: document.getElementById('transferOfficer').value,
+                note: document.getElementById('transferNote').value,
+                date: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            eq.status = 'transferred';
+            
+            saveToLocalStorage();
+            renderEquipmentTable();
+            renderTransactions();
+            updateDashboard();
+            closeModal('transferModal');
+            
+            console.log('💾 Saving transaction with Serial:', transaction.equipmentSerial, 'Mac:', transaction.equipmentMac);
+            
+            // Sync to Google Sheets immediately
+            if (isConnected && accessToken) {
+                await syncNow(true); // Skip loading data, just write to sheets
+                alert('บันทึกการโอนเรียบร้อยและ Sync แล้ว ✅');
+            } else {
+                alert('บันทึกการโอนเรียบร้อย (ยังไม่ได้เชื่อมต่อ Google Sheets)');
+            }
+        }
+
+        function openClaimModal(id) {
+            const eq = equipment.find(e => e.id === id);
+            if (!eq) {
+                alert('ไม่พบอุปกรณ์');
+                return;
+            }
+            document.getElementById('claimEqId').value = id;
+            document.querySelector('#claimModal form').reset();
+            document.getElementById('claimModal').classList.add('active');
+        }
+
+        async function saveClaim(e) {
+            e.preventDefault();
+            const id = document.getElementById('claimEqId').value;
+            const eq = equipment.find(e => e.id === id);
+            
+            if (!eq) {
+                alert('ไม่พบข้อมูลอุปกรณ์');
+                return;
+            }
+            
+            const transaction = {
+                id: Date.now().toString(),
+                equipmentId: id,
+                equipmentName: eq.name,
+                equipmentSerial: eq.serial || '-',
+                equipmentMac: eq.mac || '-',
+                type: 'claim',
+                claimTo: document.getElementById('claimTo').value,
+                note: document.getElementById('claimNote').value,
+                date: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            eq.status = 'claimed';
+            
+            saveToLocalStorage();
+            renderEquipmentTable();
+            renderTransactions();
+            updateDashboard();
+            closeModal('claimModal');
+            
+            console.log('💾 Saving transaction with Serial:', transaction.equipmentSerial, 'Mac:', transaction.equipmentMac);
+            
+            // Sync to Google Sheets immediately
+            if (isConnected && accessToken) {
+                await syncNow(true); // Skip loading data, just write to sheets
+                alert('บันทึกการเคลมเรียบร้อยและ Sync แล้ว ✅');
+            } else {
+                alert('บันทึกการเคลมเรียบร้อย (ยังไม่ได้เชื่อมต่อ Google Sheets)');
+            }
+        }
+
+        function openClaimReturnModal(id) {
+            const eq = equipment.find(e => e.id === id);
+            if (!eq || eq.status !== 'claimed') {
+                alert('อุปกรณ์นี้ไม่ได้อยู่ในสถานะเคลม');
+                return;
+            }
+            document.getElementById('claimReturnEqId').value = id;
+            document.querySelector('#claimReturnModal form').reset();
+            document.getElementById('claimReturnModal').classList.add('active');
+        }
+
+        async function saveClaimReturn(e) {
+            e.preventDefault();
+            const id = document.getElementById('claimReturnEqId').value;
+            const eq = equipment.find(e => e.id === id);
+            
+            if (!eq) {
+                alert('ไม่พบข้อมูลอุปกรณ์');
+                return;
+            }
+            
+            const returnStatus = document.getElementById('claimReturnStatus').value;
+            
+            const transaction = {
+                id: Date.now().toString(),
+                equipmentId: id,
+                equipmentName: eq.name,
+                equipmentSerial: eq.serial || '-',
+                equipmentMac: eq.mac || '-',
+                type: 'claim_return',
+                status: returnStatus,
+                note: document.getElementById('claimReturnNote').value,
+                date: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            
+            // Change status based on return condition
+            if (returnStatus === 'ไม่สามารถซ่อมได้') {
+                eq.status = 'claimed'; // Keep as claimed if can't be fixed
+            } else {
+                eq.status = 'available'; // Return to available if fixed/replaced
+            }
+            
+            saveToLocalStorage();
+            renderEquipmentTable();
+            renderTransactions();
+            updateDashboard();
+            closeModal('claimReturnModal');
+            
+            console.log('💾 Saving transaction with Serial:', transaction.equipmentSerial, 'Mac:', transaction.equipmentMac);
+            
+            // Sync to Google Sheets immediately
+            if (isConnected && accessToken) {
+                await syncNow(true);
+                alert('บันทึกการรับคืนจากเคลมเรียบร้อยและ Sync แล้ว ✅');
+            } else {
+                alert('บันทึกการรับคืนจากเคลมเรียบร้อย (ยังไม่ได้เชื่อมต่อ Google Sheets)');
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function renderEquipmentTable() {
+            const tbody = document.getElementById('equipmentBody');
+            tbody.innerHTML = '';
+
+            equipment.forEach(eq => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${eq.type}</td>
+                    <td>${eq.project || '-'}</td>
+                    <td>${eq.serial || '-'}</td>
+                    <td>${eq.mac || '-'}</td>
+                    <td>${eq.assetCode || '-'}</td>
+                    <td><span class="status-badge status-${eq.status}">${getStatusText(eq.status)}</span></td>
+                    <td class="action-buttons">
+                        <button class="btn btn-info" onclick="openEditModal('${eq.id}')" title="แก้ไข">✏️</button>
+                        <button class="btn btn-warning" onclick="openBorrowModal('${eq.id}')" title="ยืม">📤</button>
+                        <button class="btn btn-success" onclick="openReturnModal('${eq.id}')" title="คืน">📥</button>
+                        <button class="btn btn-primary" onclick="openTransferModal('${eq.id}')" title="โอน">🔄</button>
+                        <button class="btn btn-secondary" onclick="openClaimModal('${eq.id}')" title="เคลม">⚠️</button>
+                        <button class="btn btn-info" onclick="openClaimReturnModal('${eq.id}')" title="รับคืนจากเคลม">✅</button>
+                        <button class="btn btn-danger" onclick="deleteEquipment('${eq.id}')" title="ลบ">🗑️</button>
+                    </td>
+                `;
+            });
+            
+            // Update search result count after rendering
+            filterTable();
+        }
+
+        function renderTransactions() {
+            const tbody = document.getElementById('transactionsBody');
+            tbody.innerHTML = '';
+
+            [...transactions].reverse().forEach(tx => {
+                const row = tbody.insertRow();
+                const date = new Date(tx.date).toLocaleString('th-TH');
+                row.innerHTML = `
+                    <td>${date}</td>
+                    <td>${getTransactionTypeText(tx.type)}</td>
+                    <td>${tx.equipmentName}</td>
+                    <td>${tx.equipmentSerial || '-'}</td>
+                    <td>${tx.equipmentMac || '-'}</td>
+                    <td>${getTransactionDetails(tx)}</td>
+                `;
+            });
+            
+            // Update transaction count
+            filterTransactions();
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'available': 'พร้อมใช้งาน',
+                'borrowed': 'ถูกยืม',
+                'transferred': 'โอนแล้ว',
+                'claimed': 'ส่งเคลม'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getTransactionTypeText(type) {
+            const typeMap = {
+                'borrow': '🔴 ยืม',
+                'return': '🟢 คืน',
+                'transfer': '🔵 โอน',
+                'claim': '🟡 เคลม',
+                'claim_return': '✅ รับคืนจากเคลม'
+            };
+            return typeMap[type] || type;
+        }
+
+        function getTransactionDetails(tx) {
+            switch(tx.type) {
+                case 'borrow':
+                    return `ผู้ยืม: ${tx.borrower}, ผู้ให้ยืม: ${tx.lender}${tx.note ? ', ' + tx.note : ''}`;
+                case 'return':
+                    return `สถานะ: ${tx.status}${tx.note ? ', ' + tx.note : ''}`;
+                case 'transfer':
+                    return `โอนไป: ${tx.location}, ผู้รับมอบ: ${tx.officer}${tx.note ? ', ' + tx.note : ''}`;
+                case 'claim':
+                    return `ส่งเคลมกับ: ${tx.claimTo}${tx.note ? ', ' + tx.note : ''}`;
+                case 'claim_return':
+                    return `รับคืน: ${tx.status}${tx.note ? ', ' + tx.note : ''}`;
+                default:
+                    return '-';
+            }
+        }
+
+        function updateDashboard() {
+            const total = equipment.length;
+            const available = equipment.filter(e => e.status === 'available').length;
+            const borrowed = equipment.filter(e => e.status === 'borrowed').length;
+            const transferred = equipment.filter(e => e.status === 'transferred').length;
+            const claimed = equipment.filter(e => e.status === 'claimed').length;
+
+            document.getElementById('totalEquipment').textContent = total;
+            document.getElementById('availableEquipment').textContent = available;
+            document.getElementById('borrowedEquipment').textContent = borrowed;
+            document.getElementById('transferredEquipment').textContent = transferred;
+            document.getElementById('claimedEquipment').textContent = claimed;
+
+            // Category stats with detailed breakdown
+            const categoryStats = {};
+            equipment.forEach(eq => {
+                if (!categoryStats[eq.type]) {
+                    categoryStats[eq.type] = {
+                        total: 0,
+                        available: 0,
+                        borrowed: 0,
+                        transferred: 0,
+                        claimed: 0
+                    };
+                }
+                categoryStats[eq.type].total++;
+                categoryStats[eq.type][eq.status]++;
+            });
+
+            const categoryDiv = document.getElementById('categoryDetails');
+            categoryDiv.innerHTML = '';
+            
+            // Sort by total count (descending)
+            const sortedCategories = Object.entries(categoryStats).sort((a, b) => b[1].total - a[1].total);
+            
+            sortedCategories.forEach(([type, stats]) => {
+                const iconMap = {
+                    'AP': '📡',
+                    'Switch': '🔌',
+                    'PoE Injector': '⚡',
+                    'Rack': '🗄️',
+                    'ขาตั้ง': '🏗️',
+                    'อื่นๆ': '📦'
+                };
+                
+                const icon = iconMap[type] || '📦';
+                
+                categoryDiv.innerHTML += `
+                    <div class="category-detail-card">
+                        <h3>${icon} ${type}</h3>
+                        <div class="category-stats">
+                            <div class="stat-item">
+                                <div class="label">ทั้งหมด</div>
+                                <div class="number">${stats.total}</div>
+                            </div>
+                            <div class="stat-item available">
+                                <div class="label">✅ พร้อมใช้งาน</div>
+                                <div class="number">${stats.available}</div>
+                            </div>
+                            <div class="stat-item borrowed">
+                                <div class="label">📤 ถูกยืม</div>
+                                <div class="number">${stats.borrowed}</div>
+                            </div>
+                            <div class="stat-item transferred">
+                                <div class="label">🔄 โอนแล้ว</div>
+                                <div class="number">${stats.transferred}</div>
+                            </div>
+                            <div class="stat-item claimed">
+                                <div class="label">⚠️ ส่งเคลม</div>
+                                <div class="number">${stats.claimed}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (sortedCategories.length === 0) {
+                categoryDiv.innerHTML = '<p style="text-align: center; color: #6c757d; padding: 40px;">ยังไม่มีข้อมูลอุปกรณ์</p>';
+            }
+        }
+
+        // CSV Export Functions
+        function exportEquipmentToCSV() {
+            // Get visible rows only (filtered)
+            const rows = document.querySelectorAll('#equipmentBody tr');
+            const visibleData = [];
+            
+            rows.forEach(row => {
+                if (row.style.display !== 'none') {
+                    const cells = row.querySelectorAll('td');
+                    visibleData.push({
+                        type: cells[0]?.textContent || '',
+                        project: cells[1]?.textContent || '',
+                        serial: cells[2]?.textContent || '',
+                        mac: cells[3]?.textContent || '',
+                        assetCode: cells[4]?.textContent || '',
+                        status: cells[5]?.textContent || ''
+                    });
+                }
+            });
+            
+            if (visibleData.length === 0) {
+                alert('ไม่มีข้อมูลที่จะ Export');
+                return;
+            }
+            
+            // Create CSV content
+            const headers = ['ประเภท', 'โครงการ', 'Serial No.', 'Mac Address', 'รหัสสินทรัพย์', 'สถานะ'];
+            let csv = '\uFEFF' + headers.join(',') + '\n'; // Add BOM for Excel UTF-8
+            
+            visibleData.forEach(item => {
+                const row = [
+                    escapeCsvValue(item.type),
+                    escapeCsvValue(item.project),
+                    escapeCsvValue(item.serial),
+                    escapeCsvValue(item.mac),
+                    escapeCsvValue(item.assetCode),
+                    escapeCsvValue(item.status)
+                ];
+                csv += row.join(',') + '\n';
+            });
+            
+            // Download CSV
+            const filename = `อุปกรณ์_${new Date().toLocaleDateString('th-TH').replace(/\//g, '-')}_${new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}).replace(/:/g, '-')}.csv`;
+            downloadCSV(csv, filename);
+            
+            console.log(`✅ Exported ${visibleData.length} equipment items to CSV`);
+            alert(`Export สำเร็จ!\n\nจำนวน: ${visibleData.length} รายการ\nไฟล์: ${filename}`);
+        }
+        
+        function exportTransactionsToCSV() {
+            // Get visible rows only (filtered)
+            const rows = document.querySelectorAll('#transactionsBody tr');
+            const visibleData = [];
+            
+            rows.forEach(row => {
+                if (row.style.display !== 'none') {
+                    const cells = row.querySelectorAll('td');
+                    visibleData.push({
+                        date: cells[0]?.textContent || '',
+                        type: cells[1]?.textContent || '',
+                        equipment: cells[2]?.textContent || '',
+                        serial: cells[3]?.textContent || '',
+                        mac: cells[4]?.textContent || '',
+                        details: cells[5]?.textContent || ''
+                    });
+                }
+            });
+            
+            if (visibleData.length === 0) {
+                alert('ไม่มีข้อมูลที่จะ Export');
+                return;
+            }
+            
+            // Create CSV content
+            const headers = ['วันที่', 'ประเภท', 'อุปกรณ์', 'Serial No.', 'Mac Address', 'รายละเอียด'];
+            let csv = '\uFEFF' + headers.join(',') + '\n';
+            
+            visibleData.forEach(item => {
+                const row = [
+                    escapeCsvValue(item.date),
+                    escapeCsvValue(item.type),
+                    escapeCsvValue(item.equipment),
+                    escapeCsvValue(item.serial),
+                    escapeCsvValue(item.mac),
+                    escapeCsvValue(item.details)
+                ];
+                csv += row.join(',') + '\n';
+            });
+            
+            // Download CSV
+            const filename = `ประวัติการทำรายการ_${new Date().toLocaleDateString('th-TH').replace(/\//g, '-')}_${new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}).replace(/:/g, '-')}.csv`;
+            downloadCSV(csv, filename);
+            
+            console.log(`✅ Exported ${visibleData.length} transactions to CSV`);
+            alert(`Export สำเร็จ!\n\nจำนวน: ${visibleData.length} รายการ\nไฟล์: ${filename}`);
+        }
+        
+        function exportDashboardToCSV() {
+            // Get visible cards only (filtered)
+            const cards = document.querySelectorAll('#categoryDetails .category-detail-card');
+            const visibleData = [];
+            
+            cards.forEach(card => {
+                if (card.style.display !== 'none') {
+                    const title = card.querySelector('h3')?.textContent.trim() || '';
+                    const stats = card.querySelectorAll('.stat-item');
+                    
+                    const data = {
+                        type: title,
+                        total: stats[0]?.querySelector('.number')?.textContent || '0',
+                        available: stats[1]?.querySelector('.number')?.textContent || '0',
+                        borrowed: stats[2]?.querySelector('.number')?.textContent || '0',
+                        transferred: stats[3]?.querySelector('.number')?.textContent || '0',
+                        claimed: stats[4]?.querySelector('.number')?.textContent || '0'
+                    };
+                    
+                    visibleData.push(data);
+                }
+            });
+            
+            if (visibleData.length === 0) {
+                alert('ไม่มีข้อมูลที่จะ Export');
+                return;
+            }
+            
+            // Create CSV content
+            const headers = ['ประเภทอุปกรณ์', 'ทั้งหมด', 'พร้อมใช้งาน', 'ถูกยืม', 'โอนแล้ว', 'ส่งเคลม'];
+            let csv = '\uFEFF' + headers.join(',') + '\n';
+            
+            visibleData.forEach(item => {
+                const row = [
+                    escapeCsvValue(item.type),
+                    item.total,
+                    item.available,
+                    item.borrowed,
+                    item.transferred,
+                    item.claimed
+                ];
+                csv += row.join(',') + '\n';
+            });
+            
+            // Add summary row
+            const totalEquipment = document.getElementById('totalEquipment').textContent;
+            const availableEquipment = document.getElementById('availableEquipment').textContent;
+            const borrowedEquipment = document.getElementById('borrowedEquipment').textContent;
+            const transferredEquipment = document.getElementById('transferredEquipment').textContent;
+            const claimedEquipment = document.getElementById('claimedEquipment').textContent;
+            
+            csv += '\n';
+            csv += 'สรุปรวม,' + [totalEquipment, availableEquipment, borrowedEquipment, transferredEquipment, claimedEquipment].join(',') + '\n';
+            
+            // Download CSV
+            const filename = `สรุปอุปกรณ์_${new Date().toLocaleDateString('th-TH').replace(/\//g, '-')}_${new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}).replace(/:/g, '-')}.csv`;
+            downloadCSV(csv, filename);
+            
+            console.log(`✅ Exported ${visibleData.length} categories to CSV`);
+            alert(`Export สำเร็จ!\n\nจำนวนประเภท: ${visibleData.length}\nไฟล์: ${filename}`);
+        }
+        
+        function escapeCsvValue(value) {
+            // Handle null/undefined
+            if (value == null) return '';
+            
+            // Convert to string
+            value = String(value);
+            
+            // Escape quotes and wrap in quotes if contains comma, quote, or newline
+            if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                value = '"' + value.replace(/"/g, '""') + '"';
+            }
+            
+            return value;
+        }
+        
+        function downloadCSV(csvContent, filename) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (navigator.msSaveBlob) {
+                // IE 10+
+                navigator.msSaveBlob(blob, filename);
+            } else {
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        function filterTransactions() {
+            const searchTerm = document.getElementById('transactionSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#transactionsBody tr');
+            let visibleCount = 0;
+            
+            // Split by comma for multiple search terms
+            const searchTerms = searchTerm.split(',').map(term => term.trim()).filter(term => term);
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                let isVisible = false;
+                
+                if (searchTerms.length === 0) {
+                    // No search term, show all
+                    isVisible = true;
+                } else {
+                    // Show if matches ANY search term
+                    isVisible = searchTerms.some(term => text.includes(term));
+                }
+                
+                row.style.display = isVisible ? '' : 'none';
+                if (isVisible) visibleCount++;
+            });
+            
+            const result = document.getElementById('transactionResult');
+            if (searchTerm) {
+                result.textContent = `พบ ${visibleCount} รายการ`;
+            } else {
+                result.textContent = `ทั้งหมด ${rows.length} รายการ`;
+            }
+        }
+
+        function filterDashboard() {
+            const searchTerm = document.getElementById('dashboardSearch').value.toLowerCase();
+            const cards = document.querySelectorAll('#categoryDetails .category-detail-card');
+            let visibleCount = 0;
+            
+            // Split by comma for multiple search terms
+            const searchTerms = searchTerm.split(',').map(term => term.trim()).filter(term => term);
+            
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                let isVisible = false;
+                
+                if (searchTerms.length === 0) {
+                    // No search term, show all
+                    isVisible = true;
+                } else {
+                    // Show if matches ANY search term
+                    isVisible = searchTerms.some(term => text.includes(term));
+                }
+                
+                card.style.display = isVisible ? '' : 'none';
+                if (isVisible) visibleCount++;
+            });
+            
+            const result = document.getElementById('dashboardResult');
+            if (searchTerm) {
+                result.textContent = `พบ ${visibleCount} ประเภท`;
+            } else {
+                result.textContent = ``;
+            }
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const rows = document.querySelectorAll('#equipmentBody tr');
+            let visibleCount = 0;
+            
+            // Split by comma for multiple search terms
+            const searchTerms = searchTerm.split(',').map(term => term.trim()).filter(term => term);
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                let isVisible = false;
+                
+                if (searchTerms.length === 0) {
+                    // No search term, show all
+                    isVisible = true;
+                } else {
+                    // Show if matches ANY search term
+                    isVisible = searchTerms.some(term => text.includes(term));
+                }
+                
+                row.style.display = isVisible ? '' : 'none';
+                if (isVisible) visibleCount++;
+            });
+            
+            // Update search result count
+            const searchResult = document.getElementById('searchResult');
+            if (searchTerm) {
+                searchResult.textContent = `พบ ${visibleCount} รายการ`;
+                searchResult.style.display = 'inline';
+            } else {
+                searchResult.textContent = `ทั้งหมด ${rows.length} รายการ`;
+                searchResult.style.display = 'inline';
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('equipment', JSON.stringify(equipment));
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            localStorage.setItem('customTypes', JSON.stringify(customTypes));
+        }
+
+        function loadFromLocalStorage() {
+            const savedEquipment = localStorage.getItem('equipment');
+            const savedTransactions = localStorage.getItem('transactions');
+            const savedCustomTypes = localStorage.getItem('customTypes');
+            
+            if (savedEquipment) equipment = JSON.parse(savedEquipment);
+            if (savedTransactions) transactions = JSON.parse(savedTransactions);
+            if (savedCustomTypes) customTypes = JSON.parse(savedCustomTypes);
+        }
+
+        // Google Sheets OAuth 2.0 Integration
+        const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+        
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let accessToken = null;
+
+        // Initialize Google API
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            try {
+                await gapi.client.init({
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                gapiInited = true;
+                console.log('GAPI initialized successfully');
+            } catch (error) {
+                console.error('Error initializing GAPI:', error);
+            }
+        }
+
+        // Initialize Google Identity Services
+        function gisLoaded() {
+            const clientId = localStorage.getItem('clientId');
+            if (clientId) {
+                try {
+                    tokenClient = google.accounts.oauth2.initTokenClient({
+                        client_id: clientId,
+                        scope: SCOPES,
+                        callback: '', // defined later
+                        error_callback: (error) => {
+                            console.error('GIS Error:', error);
+                            alert('เกิดข้อผิดพลาดในการเชื่อมต่อ Google');
+                        }
+                    });
+                    gisInited = true;
+                    console.log('GIS initialized with client:', clientId);
+                } catch (error) {
+                    console.error('Failed to initialize GIS:', error);
+                }
+            }
+        }
+
+        function handleAuthClick() {
+            const clientId = document.getElementById('clientId').value;
+            if (!clientId) {
+                alert('กรุณาใส่ OAuth 2.0 Client ID');
+                return;
+            }
+
+            localStorage.setItem('clientId', clientId);
+
+            // Initialize token client if not already done
+            if (!tokenClient) {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: clientId,
+                    scope: SCOPES,
+                    callback: async (resp) => {
+                        if (resp.error !== undefined) {
+                            throw (resp);
+                        }
+                        accessToken = resp.access_token;
+                        document.getElementById('signoutButton').style.display = 'inline-block';
+                        document.getElementById('authorizeButton').style.display = 'none';
+                        
+                        isConnected = true;
+                        updateSyncStatus(true);
+                        
+                        // Initial sync
+                        await syncNow();
+                        
+                        // Start auto sync every 30 seconds
+                        if (syncInterval) clearInterval(syncInterval);
+                        syncInterval = setInterval(syncNow, 30000);
+                        
+                        alert('เชื่อมต่อ Google Sheets สำเร็จ! 🎉');
+                    },
+                });
+                gisInited = true;
+            }
+
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    console.error('Auth error:', resp);
+                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + resp.error);
+                    return;
+                }
+                
+                accessToken = resp.access_token;
+                gapi.client.setToken({access_token: accessToken});
+                
+                document.getElementById('signoutButton').style.display = 'inline-block';
+                document.getElementById('authorizeButton').style.display = 'none';
+                
+                isConnected = true;
+                updateSyncStatus(true);
+                
+                console.log('Authentication successful');
+                
+                // Load data from Google Sheets first
+                setTimeout(async () => {
+                    await loadDataFromSheets();
+                    await syncNow(true); // Skip loading, just write
+                }, 500);
+                
+                // Start auto sync every 3 minutes (WRITE ONLY - no loading)
+                if (syncInterval) clearInterval(syncInterval);
+                syncInterval = setInterval(() => {
+                    console.log('🔄 Auto-sync: Writing to Google Sheets (no loading)...');
+                    syncNow(true); // Skip loading - only write
+                }, 180000); // 3 minutes = 180000ms
+                
+                alert('เชื่อมต่อ Google Sheets สำเร็จ! 🎉');
+            };
+
+            if (accessToken === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        function handleSignoutClick() {
+            if (accessToken) {
+                google.accounts.oauth2.revoke(accessToken, () => {
+                    console.log('Token revoked');
+                });
+                accessToken = null;
+                gapi.client.setToken(null);
+                
+                document.getElementById('authorizeButton').style.display = 'inline-block';
+                document.getElementById('signoutButton').style.display = 'none';
+                
+                isConnected = false;
+                updateSyncStatus(false);
+                if (syncInterval) {
+                    clearInterval(syncInterval);
+                    syncInterval = null;
+                }
+                
+                alert('ออกจากระบบเรียบร้อย');
+            }
+        }
+
+        async function syncNow(skipLoad = false) {
+            if (!isConnected || !accessToken) {
+                console.log('Not connected to Google Sheets');
+                return;
+            }
+
+            const sheetId = document.getElementById('sheetId').value;
+            if (!sheetId) {
+                alert('กรุณาใส่ Spreadsheet ID');
+                isConnected = false;
+                updateSyncStatus(false);
+                return;
+            }
+
+            localStorage.setItem('sheetId', sheetId);
+
+            try {
+                console.log('Starting sync...');
+                
+                // Set token for API calls
+                gapi.client.setToken({access_token: accessToken});
+                
+                // Only load data from sheets if explicitly requested (not during save operations)
+                if (!skipLoad) {
+                    await loadDataFromSheets();
+                }
+                
+                // Always write local data to sheets (this includes migration)
+                await syncEquipmentSheet(sheetId);
+                await syncTransactionsSheet(sheetId);
+
+                updateSyncStatus(true);
+                console.log('✅ Sync completed successfully');
+            } catch (error) {
+                console.error('❌ Sync error:', error);
+                updateSyncStatus(false);
+                
+                if (error.status === 401 || error.status === 403) {
+                    alert('Session หมดอายุหรือไม่มีสิทธิ์เข้าถึง กรุณา Login ใหม่');
+                    handleSignoutClick();
+                } else if (error.status === 404) {
+                    alert('ไม่พบ Spreadsheet กรุณาตรวจสอบ Spreadsheet ID');
+                } else {
+                    alert('เกิดข้อผิดพลาดในการ Sync: ' + (error.message || 'Unknown error'));
+                }
+            }
+        }
+
+        // Function to force create 8-column Transactions sheet
+        async function forceCreate8ColumnSheet() {
+            if (!isConnected || !accessToken) {
+                alert('กรุณา Login Google ก่อน');
+                return;
+            }
+
+            const sheetId = document.getElementById('sheetId').value;
+            if (!sheetId) {
+                alert('กรุณาใส่ Spreadsheet ID');
+                return;
+            }
+
+            if (!confirm('จะลบ Sheet "Transactions" เก่าและสร้างใหม่แบบ 8 คอลัมน์\n\nข้อมูลจะถูกโหลดจาก localStorage และเขียนใหม่\n\nดำเนินการต่อหรือไม่?')) {
+                return;
+            }
+
+            try {
+                console.log('🔄 Force creating 8-column Transactions sheet...');
+                gapi.client.setToken({access_token: accessToken});
+                
+                // Step 1: Try to delete existing Transactions sheet
+                try {
+                    const sheetProps = await gapi.client.sheets.spreadsheets.get({
+                        spreadsheetId: sheetId,
+                        fields: 'sheets(properties(sheetId,title))'
+                    });
+                    
+                    const transactionsSheet = sheetProps.result.sheets.find(
+                        s => s.properties.title === 'Transactions'
+                    );
+                    
+                    if (transactionsSheet) {
+                        console.log('Found existing Transactions sheet, deleting...');
+                        await gapi.client.sheets.spreadsheets.batchUpdate({
+                            spreadsheetId: sheetId,
+                            resource: {
+                                requests: [{
+                                    deleteSheet: {
+                                        sheetId: transactionsSheet.properties.sheetId
+                                    }
+                                }]
+                            }
+                        });
+                        console.log('✅ Old sheet deleted');
+                    }
+                } catch (error) {
+                    console.log('No existing sheet to delete or error:', error.message);
+                }
+                
+                // Step 2: Create new Transactions sheet
+                console.log('📋 Creating new Transactions sheet...');
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: sheetId,
+                    resource: {
+                        requests: [{
+                            addSheet: {
+                                properties: {
+                                    title: 'Transactions'
+                                }
+                            }
+                        }]
+                    }
+                });
+                console.log('✅ New sheet created');
+                
+                // Step 3: Write data with 8 columns
+                const headers = ['ID', 'Equipment ID', 'ชื่ออุปกรณ์', 'Serial No.', 'Mac Address', 'ประเภทรายการ', 'รายละเอียด', 'วันที่'];
+                
+                const rows = transactions.map(tx => [
+                    tx.id || '',
+                    tx.equipmentId || '',
+                    tx.equipmentName || '',
+                    tx.equipmentSerial || '-',
+                    tx.equipmentMac || '-',
+                    getTransactionTypeText(tx.type) || '',
+                    getTransactionDetails(tx) || '',
+                    tx.date ? new Date(tx.date).toLocaleString('th-TH') : ''
+                ]);
+                
+                const values = [headers, ...rows];
+                
+                console.log(`📊 Writing ${rows.length} rows with 8 columns`);
+                
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: sheetId,
+                    range: 'Transactions!A1',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: values,
+                    },
+                });
+                
+                console.log('✅ Data written successfully');
+                console.log('✅ Structure: A=ID, B=EqID, C=Name, D=Serial, E=Mac, F=Type, G=Details, H=Date');
+                
+                alert('✅ สร้าง Sheet Transactions แบบ 8 คอลัมน์สำเร็จ!\n\nกรุณาเปิด Google Sheets ตรวจสอบ');
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('เกิดข้อผิดพลาด: ' + (error.result?.error?.message || error.message));
+            }
+        }
+
+        // Function to clear localStorage
+        function clearLocalStorage() {
+            const confirmMsg = 'คุณแน่ใจหรือไม่ที่จะลบข้อมูลทั้งหมดใน Local Storage?\n\n' +
+                              'ข้อมูลที่จะถูกลบ:\n' +
+                              `- อุปกรณ์: ${equipment.length} รายการ\n` +
+                              `- ประวัติการทำรายการ: ${transactions.length} รายการ\n` +
+                              `- ประเภทที่กำหนดเอง: ${customTypes.length} ประเภท\n\n` +
+                              '⚠️ หมายเหตุ: ข้อมูลใน Google Sheets จะไม่ถูกลบ\n' +
+                              'สามารถโหลดกลับมาได้โดยคลิก "โหลดข้อมูลจาก Sheet"';
+            
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            // Backup config before clearing
+            const clientId = localStorage.getItem('clientId');
+            const sheetId = localStorage.getItem('sheetId');
+            
+            // Clear all data
+            localStorage.clear();
+            
+            // Restore config
+            if (clientId) localStorage.setItem('clientId', clientId);
+            if (sheetId) localStorage.setItem('sheetId', sheetId);
+            
+            // Reset arrays
+            equipment = [];
+            transactions = [];
+            customTypes = [];
+            
+            // Update UI
+            renderEquipmentTable();
+            renderTransactions();
+            updateDashboard();
+            
+            console.log('✅ Local Storage cleared successfully');
+            alert('✅ ลบข้อมูล Local Storage เรียบร้อย!\n\nสามารถโหลดข้อมูลกลับมาจาก Google Sheets ได้โดยคลิก "โหลดข้อมูลจาก Sheet"');
+        }
+
+        async function loadDataFromSheets() {
+            const sheetId = document.getElementById('sheetId').value;
+            if (!sheetId) return;
+
+            try {
+                console.log('📥 Loading data from Google Sheets...');
+                
+                // Create maps of existing data to preserve dates
+                const existingEquipmentMap = {};
+                equipment.forEach(eq => {
+                    existingEquipmentMap[eq.id] = eq;
+                });
+                
+                const existingTransactionsMap = {};
+                transactions.forEach(tx => {
+                    existingTransactionsMap[tx.id] = tx;
+                });
+                
+                // Load Equipment data
+                try {
+                    const equipmentResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: sheetId,
+                        range: 'Equipment!A2:K10000', // Skip header row
+                    });
+
+                    const equipmentRows = equipmentResponse.result.values;
+                    if (equipmentRows && equipmentRows.length > 0) {
+                        equipment = equipmentRows.map(row => {
+                            const id = row[0] || Date.now().toString();
+                            const existing = existingEquipmentMap[id];
+                            
+                            return {
+                                id: id,
+                                type: row[1] || '',
+                                name: row[2] || '',
+                                serial: row[3] || '',
+                                mac: row[4] || '',
+                                assetCode: row[5] || '',
+                                officer: row[6] || '',
+                                project: row[7] || '',
+                                note: row[8] || '',
+                                status: getStatusFromText(row[9] || 'พร้อมใช้งาน'),
+                                // Use existing date if available, otherwise parse from sheet
+                                createdDate: existing ? existing.createdDate : (parseDateFromSheet(row[10]) || new Date().toISOString())
+                            };
+                        });
+                        console.log('✅ Loaded', equipment.length, 'equipment items');
+                    }
+                } catch (error) {
+                    if (error.status !== 400) { // Ignore if sheet doesn't exist
+                        console.error('Error loading equipment:', error);
+                    }
+                }
+
+                // Load Transactions data
+                try {
+                    const transactionsResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: sheetId,
+                        range: 'Transactions!A1:H10000', // Include header to check format
+                    });
+
+                    const transactionRows = transactionsResponse.result.values;
+                    if (transactionRows && transactionRows.length > 1) {
+                        const headers = transactionRows[0];
+                        const hasNewFormat = headers.length >= 8 && headers.includes('Serial No.');
+                        
+                        console.log(`📊 Transactions format: ${hasNewFormat ? 'New (8 cols)' : 'Old (6 cols)'}`);
+                        console.log('Headers:', headers);
+                        
+                        // Skip header row
+                        const dataRows = transactionRows.slice(1);
+                        
+                        transactions = dataRows.map(row => {
+                            const id = row[0] || Date.now().toString();
+                            const existing = existingTransactionsMap[id];
+                            
+                            if (hasNewFormat) {
+                                // New format: 8 columns with Serial and Mac
+                                const txType = getTransactionTypeFromText(row[5] || '');
+                                const details = parseTransactionDetails(row[6] || '', txType);
+                                
+                                return {
+                                    id: id,
+                                    equipmentId: row[1] || '',
+                                    equipmentName: row[2] || '',
+                                    equipmentSerial: row[3] || '-',
+                                    equipmentMac: row[4] || '-',
+                                    type: txType,
+                                    date: existing ? existing.date : (parseDateFromSheet(row[7]) || new Date().toISOString()),
+                                    ...details
+                                };
+                            } else {
+                                // Old format: 6 columns without Serial and Mac
+                                console.warn('⚠️ Old format detected! Please use "สร้าง Sheet 8 คอลัมน์ใหม่" button');
+                                const txType = getTransactionTypeFromText(row[3] || '');
+                                const details = parseTransactionDetails(row[4] || '', txType);
+                                
+                                // Try to get Serial and Mac from equipment data
+                                const equipmentId = row[1] || '';
+                                const eq = equipment.find(e => e.id === equipmentId);
+                                
+                                return {
+                                    id: id,
+                                    equipmentId: equipmentId,
+                                    equipmentName: row[2] || '',
+                                    equipmentSerial: eq ? (eq.serial || '-') : '-',
+                                    equipmentMac: eq ? (eq.mac || '-') : '-',
+                                    type: txType,
+                                    date: existing ? existing.date : (parseDateFromSheet(row[5]) || new Date().toISOString()),
+                                    ...details
+                                };
+                            }
+                        });
+                        
+                        console.log('✅ Loaded', transactions.length, 'transactions');
+                    }
+                } catch (error) {
+                    if (error.status !== 400) {
+                        console.error('Error loading transactions:', error);
+                    }
+                }
+
+                // Update UI
+                saveToLocalStorage();
+                renderEquipmentTable();
+                renderTransactions();
+                updateDashboard();
+                
+                console.log('✅ Data loaded and UI updated');
+            } catch (error) {
+                console.error('❌ Error loading data from sheets:', error);
+            }
+        }
+
+        function getStatusFromText(statusText) {
+            const statusMap = {
+                'พร้อมใช้งาน': 'available',
+                'ถูกยืม': 'borrowed',
+                'โอนแล้ว': 'transferred',
+                'ส่งเคลม': 'claimed'
+            };
+            return statusMap[statusText] || 'available';
+        }
+
+        function parseDateFromSheet(dateString) {
+            if (!dateString) return new Date().toISOString();
+            
+            // Try parsing Thai date format (e.g., "16/11/2567 14:30:45")
+            // Or standard format
+            try {
+                // If it's already ISO format
+                if (dateString.includes('T') || dateString.includes('Z')) {
+                    return new Date(dateString).toISOString();
+                }
+                
+                // Parse Thai format: "16/11/2567, 14:30:45"
+                const thaiMatch = dateString.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{2}):(\d{2})/);
+                if (thaiMatch) {
+                    const [, day, month, buddhistYear, hour, minute, second] = thaiMatch;
+                    const gregorianYear = parseInt(buddhistYear) - 543;
+                    const date = new Date(gregorianYear, parseInt(month) - 1, parseInt(day), 
+                                         parseInt(hour), parseInt(minute), parseInt(second));
+                    return date.toISOString();
+                }
+                
+                // Parse standard format: "16/11/2024 14:30:45"
+                const standardMatch = dateString.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{2}):(\d{2})/);
+                if (standardMatch) {
+                    const [, day, month, year, hour, minute, second] = standardMatch;
+                    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
+                                         parseInt(hour), parseInt(minute), parseInt(second));
+                    return date.toISOString();
+                }
+                
+                // Try direct parsing
+                const date = new Date(dateString);
+                if (!isNaN(date.getTime())) {
+                    return date.toISOString();
+                }
+                
+                // Fallback to current date
+                return new Date().toISOString();
+            } catch (error) {
+                console.error('Error parsing date:', dateString, error);
+                return new Date().toISOString();
+            }
+        }
+
+        function getTransactionTypeFromText(typeText) {
+            if (typeText.includes('ยืม')) return 'borrow';
+            if (typeText.includes('คืน') && !typeText.includes('รับคืนจากเคลม')) return 'return';
+            if (typeText.includes('โอน')) return 'transfer';
+            if (typeText.includes('รับคืนจากเคลม')) return 'claim_return';
+            if (typeText.includes('เคลม')) return 'claim';
+            return 'borrow';
+        }
+
+        function parseTransactionDetails(detailsText, type) {
+            const details = {};
+            
+            switch(type) {
+                case 'borrow':
+                    const borrowMatch = detailsText.match(/ผู้ยืม: ([^,]+), ผู้ให้ยืม: ([^,]+)/);
+                    if (borrowMatch) {
+                        details.borrower = borrowMatch[1];
+                        details.lender = borrowMatch[2];
+                    }
+                    break;
+                case 'return':
+                    const returnMatch = detailsText.match(/สถานะ: ([^,]+)/);
+                    if (returnMatch) {
+                        details.status = returnMatch[1];
+                    }
+                    break;
+                case 'transfer':
+                    const transferMatch = detailsText.match(/โอนไป: ([^,]+), ผู้รับมอบ: ([^,]+)/);
+                    if (transferMatch) {
+                        details.location = transferMatch[1];
+                        details.officer = transferMatch[2];
+                    }
+                    break;
+                case 'claim':
+                    const claimMatch = detailsText.match(/ส่งเคลมกับ: ([^,]+)/);
+                    if (claimMatch) {
+                        details.claimTo = claimMatch[1];
+                    }
+                    break;
+                case 'claim_return':
+                    const claimReturnMatch = detailsText.match(/รับคืน: ([^,]+)/);
+                    if (claimReturnMatch) {
+                        details.status = claimReturnMatch[1];
+                    }
+                    break;
+            }
+            
+            // Extract note if present
+            const noteMatch = detailsText.match(/, ([^,]+)$/);
+            if (noteMatch) {
+                details.note = noteMatch[1];
+            }
+            
+            return details;
+        }
+
+        async function syncEquipmentSheet(spreadsheetId) {
+            try {
+                // Prepare data
+                const headers = ['ID', 'ประเภท', 'ชื่อ', 'Serial No.', 'Mac Address', 'รหัสสินทรัพย์', 'จนท.ดำเนินการ', 'โครงการ', 'หมายเหตุ', 'สถานะ', 'วันที่สร้าง'];
+                const rows = equipment.map(eq => [
+                    eq.id,
+                    eq.type,
+                    eq.name,
+                    eq.serial || '',
+                    eq.mac || '',
+                    eq.assetCode || '',
+                    eq.officer || '',
+                    eq.project || '',
+                    eq.note || '',
+                    getStatusText(eq.status),
+                    new Date(eq.createdDate).toLocaleString('th-TH')
+                ]);
+
+                const values = [headers, ...rows];
+
+                console.log('Syncing Equipment sheet with', rows.length, 'rows');
+
+                // First, ensure the sheet exists by trying to get its properties
+                try {
+                    const sheetProps = await gapi.client.sheets.spreadsheets.get({
+                        spreadsheetId: spreadsheetId,
+                        fields: 'sheets.properties'
+                    });
+                    
+                    const hasEquipmentSheet = sheetProps.result.sheets.some(
+                        sheet => sheet.properties.title === 'Equipment'
+                    );
+                    
+                    if (!hasEquipmentSheet) {
+                        console.log('Creating Equipment sheet...');
+                        await gapi.client.sheets.spreadsheets.batchUpdate({
+                            spreadsheetId: spreadsheetId,
+                            resource: {
+                                requests: [{
+                                    addSheet: {
+                                        properties: {
+                                            title: 'Equipment'
+                                        }
+                                    }
+                                }]
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error checking sheets:', error);
+                }
+
+                // Write data (no need to clear first if sheet is new)
+                const response = await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: spreadsheetId,
+                    range: 'Equipment!A1',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: values,
+                    },
+                });
+
+                console.log('✅ Equipment synced:', response.result.updatedCells, 'cells updated');
+            } catch (error) {
+                console.error('❌ Error syncing Equipment:', error);
+                if (error.result && error.result.error) {
+                    console.error('API Error details:', error.result.error);
+                }
+                throw error;
+            }
+        }
+
+        async function syncTransactionsSheet(spreadsheetId) {
+            try {
+                // Prepare data
+                const headers = ['ID', 'Equipment ID', 'ชื่ออุปกรณ์', 'ประเภทรายการ', 'รายละเอียด', 'วันที่'];
+                const rows = transactions.map(tx => [
+                    tx.id,
+                    tx.equipmentId,
+                    tx.equipmentName,
+                    getTransactionTypeText(tx.type),
+                    getTransactionDetails(tx),
+                    new Date(tx.date).toLocaleString('th-TH')
+                ]);
+
+                const values = [headers, ...rows];
+
+                console.log('Syncing Transactions sheet with', rows.length, 'rows');
+
+                // Clear existing data first
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: spreadsheetId,
+                    range: 'Transactions!A1:Z1000',
+                });
+
+                // Write new data
+                const response = await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: spreadsheetId,
+                    range: 'Transactions!A1',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: values,
+                    },
+                });
+
+                console.log('✅ Transactions synced:', response.result.updatedCells, 'cells updated');
+            } catch (error) {
+                console.error('❌ Error syncing Transactions:', error);
+                throw error;
+            }
+        }
+
+        function connectGoogleSheet() {
+            // Legacy function - redirect to OAuth
+            handleAuthClick();
+        }
+
+        async function syncSheet(sheetId, apiKey, sheetName, data) {
+            // This function is now replaced by syncEquipmentSheet and syncTransactionsSheet
+            console.log('Using OAuth 2.0 sync instead');
+        }
+
+        function updateSyncStatus(connected) {
+            const indicator = document.getElementById('syncIndicator');
+            const status = document.getElementById('syncStatus');
+            
+            if (connected) {
+                indicator.classList.add('connected');
+                status.textContent = 'เชื่อมต่อแล้ว - Sync ทุก 3 นาที';
+                console.log('🟢 Status: Connected');
+            } else {
+                indicator.classList.remove('connected');
+                status.textContent = 'ไม่ได้เชื่อมต่อ';
+                console.log('🔴 Status: Disconnected');
+            }
+        }
+
+        // Load saved Google Sheets config and initialize
+        window.addEventListener('load', () => {
+            const savedSheetId = localStorage.getItem('sheetId');
+            const savedClientId = localStorage.getItem('clientId');
+            
+            if (savedSheetId) document.getElementById('sheetId').value = savedSheetId;
+            if (savedClientId) document.getElementById('clientId').value = savedClientId;
+            
+            // Initialize Google APIs
+            gapiLoaded();
+            setTimeout(() => {
+                if (savedClientId) {
+                    gisLoaded();
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
